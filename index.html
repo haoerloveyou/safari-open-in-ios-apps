@@ -24,12 +24,13 @@
             </div>
             <div class="body" style="display: none;">
                 <p id="tips"></p>
+                <p id="ua"></p>
             </div>
         </div>
         <script>
             function is_weixin() {
                 var ua = navigator.userAgent;
-                var REGEXP_IOS_QQ = /(iPad|iPhone|iPod).*? QQ\/([\d\.]+)/;
+                var REGEXP_IOS_QQ = /QQ\/([\d\.]+)/;
                 var isiOSMQ = REGEXP_IOS_QQ.test(ua);
                 return !!(isiOSMQ || ua.indexOf("MicroMessenger") > -1);
             }
@@ -91,15 +92,6 @@
                     $("h3").html("非法的二维码标识。");
                     return;
                 }
-                if (is_weixin()) {
-                    $("h3").html("请点击右上角按钮，选择“用 Safari 打开”。");
-                    return;
-                } else {
-                    if (is_safari() == false) {
-                        $("h3").html("请使用 iOS 上的 Safari 打开。");
-                        return;
-                    }
-                }
                 $(".body").fadeIn();
                 $("#tips").text("正在加载二维码信息……");
                 $.ajax({
@@ -153,6 +145,15 @@
                 })
             })(jQuery);
             $(document).ready(function () {
+                if (is_weixin()) {
+                    $("h3").html("请点击右上角按钮，选择“用 Safari 打开”。");
+                    return;
+                } else {
+                    if (is_safari() == false) {
+                        $("h3").html("请使用 iOS 上的 Safari 打开。");
+                        return;
+                    }
+                }
                 var args = $.urlGet();
                 if (args) {
                     if ("id" in args) {
