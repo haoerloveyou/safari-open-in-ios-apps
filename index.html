@@ -1,0 +1,171 @@
+<html lang="zh-cn">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="minimum-scale=1.0, width=device-width, maximum-scale=0.6667, user-scalable=no" />
+        <meta name="HandheldFriendly" content="true" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="robots" content="index, follow" />
+        <meta name="title" content="82Flex" />
+        <meta name="description" content="每一个平凡的日常，都是连续发生中的奇迹。" />
+        <meta name ="keywords" content="typecho,php,blog" />
+        <base target="_top">
+        <title>添加「礼记」卡片到主屏幕</title>
+        <link rel="shortcut icon" href="/favicon.ico">
+        <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.2.0/css/bootstrap.css">
+        <script src="https://cdn.bootcss.com/jquery/2.2.3/jquery.min.js"></script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="page-header">
+                <div style="display: inline;">
+                    <h3>添加「礼记」卡片到主屏幕</h3>
+                </div>
+            </div>
+            <div class="body" style="display: none;">
+                <p id="tips"></p>
+            </div>
+        </div>
+        <script>
+            function is_weixin() {
+                var ua = navigator.userAgent;
+                var REGEXP_IOS_QQ = /(iPad|iPhone|iPod).*? QQ\/([\d\.]+)/;
+                var isiOSMQ = REGEXP_IOS_QQ.test(ua);
+                return !!(isiOSMQ || ua.indexOf("MicroMessenger") > -1);
+            }
+            function is_safari() {
+                var ua = navigator.userAgent;
+                var isSafari = ua.indexOf("Safari") > -1;
+                var isMobile = ua.indexOf("Mobile") > -1;
+                return isSafari && isMobile;
+            }
+            function go_url(url, image_url, nick) {
+                window.location.href = "jump.html?bid=0&url=" + url + "&name=" + encodeURIComponent(nick) + "&img=" + image_url + "&uin=0#";
+                return false;
+            }
+            function query_card(card_token) {
+                var token = card_token;
+                var reg = /^[0-9A-Za-z|-]+$/;
+                var result = token.match(reg);
+                if (result == null) {
+                    $("#tips").html("非法的卡片标识。");
+                    return;
+                }
+                $(".body").fadeIn();
+                $("#tips").text("正在加载卡片信息……");
+                $.ajax({
+                    type: "POST",
+                    url: "https://courtesy.82flex.com/api/courtesy/",
+                    data: '{"action":"card_query", "token":"' + token + '"}',
+                    dataType: "JSON",
+                    contentType: "application/json",
+                    error: function () {
+                        $("#tips").text("无法连接服务器。");
+                    },
+                    success: function (data) {
+                        if (!("error" in data)) {
+                            $("#tips").text("服务器错误。");
+                            return;
+                        }
+                        if (
+                            !("card_info" in data) ||
+                            !("author"    in data["card_info"]) ||
+                            !("profile"   in data["card_info"]["author"]) ||
+                            !("nick"      in data["card_info"]["author"]["profile"]) ||
+                            !("avatar"    in data["card_info"]["author"]["profile"])
+                        ) {
+                            $("#tips").text("无效的卡片信息。");
+                            return;
+                        }
+                        var nick = data["card_info"]["author"]["profile"]["nick"];
+                        var avatar = data["card_info"]["author"]["profile"]["avatar"];
+                        go_url("courtesy%3A%2F%2F?action%3Dcard%26token%3D" + token, "%2Fstatic%2Favatar%2F" + avatar + "_150.png", nick + " 的卡片");
+                    }
+                });
+            }
+            function query_qrcode(qr_id) {
+                var qr = qr_id;
+                var reg = /^[0-9A-Fa-f]{32}$/;
+                var result = qr.match(reg);
+                if (result == null) {
+                    $("h3").html("非法的二维码标识。");
+                    return;
+                }
+                if (is_weixin()) {
+                    $("h3").html("请点击右上角按钮，选择“用 Safari 打开”。");
+                    return;
+                } else {
+                    if (is_safari() == false) {
+                        $("h3").html("请使用 iOS 上的 Safari 打开。");
+                        return;
+                    }
+                }
+                $(".body").fadeIn();
+                $("#tips").text("正在加载二维码信息……");
+                $.ajax({
+                    type: "POST",
+                    url: "https://courtesy.82flex.com/api/courtesy/",
+                    data: '{"action":"qr_query", "qr_id":"' + qr + '"}',
+                    dataType: "JSON",
+                    contentType: "application/json",
+                    error: function () {
+                        $("#tips").text("无法连接服务器。");
+                    },
+                    success: function (data) {
+                        if (!("error" in data)) {
+                            $("#tips").text("服务器错误。");
+                            return;
+                        }
+                        if (!("qr_info" in data) || !("is_recorded" in data["qr_info"])) {
+                            $("#tips").text("无效的二维码信息。");
+                            return;
+                        }
+                        if (!data["qr_info"]["is_recorded"]) {
+                            // 跳转到卡片发布
+                            go_url("courtesy%3A%2F%2F?action%3Dqrcode%26id%3D" + qr, "style/recommend-default-icon.png", "新卡片");
+                        } else {
+                            if (!("card_token" in data["qr_info"])) {
+                                $("#tips").text("无效的卡片标识。");
+                                return;
+                            }
+                            query_card(data["qr_info"]["card_token"]);
+                        }
+                    }
+                });
+            }
+            (function($) {
+                $.extend({
+                    urlGet:function()
+                    {
+                        var aQuery = window.location.href.split("?");
+                        var aGET = [];
+                        if(aQuery.length > 1)
+                        {
+                            var aBuf = aQuery[1].split("&");
+                            for(var i = 0, iLoop = aBuf.length; i < iLoop; i++)
+                            {
+                                var aTmp = aBuf[i].split("=");
+                                aGET[aTmp[0]] = aTmp[1];
+                            }
+                        }
+                        return aGET;
+                    }
+                })
+            })(jQuery);
+            $(document).ready(function () {
+                var args = $.urlGet();
+                if (args) {
+                    if ("id" in args) {
+                        query_qrcode(args["id"]);
+                        return;
+                    } else if ("token" in args) {
+                        query_card(args["token"]);
+                        return;
+                    }
+                }
+                $("h3").html("无效的标识。");
+                return;
+            });
+        </script>
+    </body>
+</html>
